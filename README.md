@@ -16,4 +16,3 @@ sessions_status 0
 TODO: Support selenoid structure
 =======
 Prometheus exporter for Windows/Mac standalone nodes under GGR management
->>>>>>> 2cb1bc32b88e6c800abccb26952427887e46d656

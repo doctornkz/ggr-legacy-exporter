@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -37,12 +38,28 @@ var (
 	sessions    Sessions
 	seleniumURL string
 	listen      string
+	version     bool
+)
+
+const (
+	currentVersion     = "0.0.2"
+	defaultSeleniumURL = "http://localhost:4444/wd/hub/sessions"
+	defaultListen      = "0.0.0.0:9156"
 )
 
 func init() {
-	flag.StringVar(&seleniumURL, "surl", "http://localhost:4444/wd/hub/sessions", "Full URL to session handler")
-	flag.StringVar(&listen, "listen", "localhost:9156", "Host and port to listen to")
+	flag.StringVar(&seleniumURL, "surl", defaultSeleniumURL, "Full URL to session handler")
+	flag.StringVar(&listen, "listen", defaultListen, "Host and port to listen to")
+	flag.BoolVar(&version, "version", false, "Show version and exit")
 	flag.Parse()
+	if version {
+		fmt.Printf("Selenium exporter v%s, see at github.com/doctornkz/ggr-legacy-exporter\n", currentVersion)
+		os.Exit(0)
+	}
+
+	log.Printf("Selenium exporter v(%s) is running with parameters: selenium URL:%s, listening IP:PORT :%s\n",
+		currentVersion, seleniumURL, listen)
+
 }
 
 func main() {

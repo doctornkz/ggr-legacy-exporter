@@ -1,7 +1,6 @@
 # ggr-legacy-exporter
-<<<<<<< HEAD
-Prometheus exporter for Windows/Mac standalone nodes
 
+Prometheus exporter for Windows/Mac standalone nodes
 ```
 go run main.go -surl http://192.168.1.1:4444/wd/hub/sessions
 ```
@@ -14,6 +13,3 @@ sessions_status 0
 ```
 
 TODO: Support selenoid structure
-=======
-Prometheus exporter for Windows/Mac standalone nodes under GGR management
->>>>>>> 2cb1bc32b88e6c800abccb26952427887e46d656

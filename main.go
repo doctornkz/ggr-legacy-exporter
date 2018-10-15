@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -42,7 +43,7 @@ var (
 )
 
 const (
-	currentVersion     = "0.0.3"
+	currentVersion     = "0.0.4"
 	defaultSeleniumURL = "http://localhost:4444/wd/hub/sessions"
 	defaultListen      = "0.0.0.0:9156"
 )
@@ -78,7 +79,7 @@ func main() {
 }
 
 func formatter(sessions Sessions) string {
-
+	regexp.MustCompile("success")
 	var outputString string
 	// sessions_windows_internetexplorer_10 = N
 	browsers := make(map[string]int)
@@ -97,14 +98,14 @@ func formatter(sessions Sessions) string {
 	}
 
 	// Common metrics
-
 	// SessionState couldn't be string, only float/int
+
 	sessionsStateSuccess := 0
-	if (sessions.State) == "success" {
+	if regexp.MustCompile("success").MatchString(sessions.State) {
 		sessionsStateSuccess = 1
 	}
 
-	outputString = outputString + fmt.Sprintf("sessions_state %d\nsessions_status_success %d\n", sessionsStateSuccess, sessions.Status)
+	outputString = outputString + fmt.Sprintf("sessions_state %d\nsessions_status_success %d\n", sessions.Status, sessionsStateSuccess)
 	return outputString
 }
 

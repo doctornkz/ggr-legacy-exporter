@@ -42,7 +42,7 @@ var (
 )
 
 const (
-	currentVersion     = "0.0.2"
+	currentVersion     = "0.0.3"
 	defaultSeleniumURL = "http://localhost:4444/wd/hub/sessions"
 	defaultListen      = "0.0.0.0:9156"
 )
@@ -97,7 +97,14 @@ func formatter(sessions Sessions) string {
 	}
 
 	// Common metrics
-	outputString = outputString + fmt.Sprintf("sessions_state %s\nsessions_status %d\n", sessions.State, sessions.Status)
+
+	// SessionState couldn't be string, only float/int
+	sessionsStateSuccess := 0
+	if (sessions.State) == "success" {
+		sessionsStateSuccess = 1
+	}
+
+	outputString = outputString + fmt.Sprintf("sessions_state %d\nsessions_status_success %d\n", sessionsStateSuccess, sessions.Status)
 	return outputString
 }
 

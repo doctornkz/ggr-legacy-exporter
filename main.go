@@ -60,7 +60,7 @@ var (
 )
 
 const (
-	currentVersion     = "0.1.0"
+	currentVersion     = "0.1.1"
 	defaultSeleniumURL = "http://localhost:8097/wd/hub/sessions" // By default 4444 is using
 	defaultListen      = "0.0.0.0:9156"
 )
@@ -87,10 +87,14 @@ func main() {
 	go func() {
 		for {
 			currentSession := getSessions()
+			if len(currentSession) == 0 { // Cleaning sessions counter
+				sessions.Reset()
+			}
+
+			// TODO: What if map == 0? heh. Gauge won't change!
 			for k, v := range currentSession {
 				sessions.WithLabelValues(k.Platform, k.BrowserName, k.Version).Set(float64(v))
 			}
-
 			time.Sleep(time.Duration(time.Second * 10))
 		}
 	}()

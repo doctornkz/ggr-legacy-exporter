@@ -87,17 +87,17 @@ func main() {
 	go func() {
 		for {
 			currentSession := getSessions()
-			if len(currentSession) == 0 { // Cleaning sessions counter
-				sessions.Reset()
-			}
-
-			// TODO: What if map == 0? heh. Gauge won't change!
+			sessions.Reset()
 			for k, v := range currentSession {
 				sessions.WithLabelValues(k.Platform, k.BrowserName, k.Version).Set(float64(v))
 			}
 			time.Sleep(time.Duration(time.Second * 10))
 		}
 	}()
+
+	http.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(currentVersion))
+	})
 
 	// Expose the registered metrics via HTTP.
 	http.Handle("/metrics", promhttp.Handler())

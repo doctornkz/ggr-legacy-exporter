@@ -132,6 +132,8 @@ func sessionsReader() (SeleniumSessions, error) {
 		log.Printf("Can't read response from socket: %v", err)
 		return seleniumSessions, err
 
+		// Some comment
+
 	}
 	err = json.Unmarshal(body, &seleniumSessions)
 

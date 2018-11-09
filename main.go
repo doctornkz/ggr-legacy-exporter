@@ -8,12 +8,14 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"regexp"
-	"strings"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Sessions - main struct of Selenium hub response
-type Sessions struct {
+// SeleniumSessions - main struct of Selenium hub response
+type SeleniumSessions struct {
 	Class     string
 	Status    int
 	State     string
@@ -29,6 +31,13 @@ type Sessions struct {
 	}
 }
 
+// SessionLabeled - data structure for export metrics in Prometheus runtime
+type SessionLabeled struct {
+	BrowserName string
+	Platform    string
+	Version     string
+}
+
 var paths = struct {
 	Metrics string
 }{
@@ -36,15 +45,23 @@ var paths = struct {
 }
 
 var (
-	sessions    Sessions
-	seleniumURL string
-	listen      string
-	version     bool
+	seleniumSessions SeleniumSessions
+	seleniumURL      string
+	listen           string
+	version          bool
+)
+
+var (
+	sessions = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "sessions_total",
+			Help: "number of sessions with all types browsers.",
+		}, []string{"platform", "browsername", "version"})
 )
 
 const (
-	currentVersion     = "0.0.4"
-	defaultSeleniumURL = "http://localhost:4444/wd/hub/sessions"
+	currentVersion     = "0.1.1"
+	defaultSeleniumURL = "http://localhost:8097/wd/hub/sessions" // By default 4444 is using
 	defaultListen      = "0.0.0.0:9156"
 )
 
@@ -61,73 +78,69 @@ func init() {
 	log.Printf("Selenium exporter v(%s) is running with parameters: selenium URL:%s, listening IP:PORT :%s\n",
 		currentVersion, seleniumURL, listen)
 
+	prometheus.MustRegister(sessions)
+
 }
 
 func main() {
-	http.HandleFunc(paths.Metrics, func(w http.ResponseWriter, r *http.Request) {
-		sessions, err := sessionsReader()
-		if err != nil {
-			w.Write([]byte("Problem with selenium's response, see logs for details."))
-		} else {
-			metricPage := formatter(sessions)
-			w.Write([]byte(metricPage))
+
+	go func() {
+		for {
+			currentSession := getSessions()
+			sessions.Reset()
+			for k, v := range currentSession {
+				sessions.WithLabelValues(k.Platform, k.BrowserName, k.Version).Set(float64(v))
+			}
+			time.Sleep(time.Duration(time.Second * 10))
 		}
+	}()
+
+	http.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(currentVersion))
 	})
-	if err := http.ListenAndServe(listen, nil); err != nil {
-		log.Fatalf("Error starting HTTP server: %s", err)
-	}
+
+	// Expose the registered metrics via HTTP.
+	http.Handle("/metrics", promhttp.Handler())
+	log.Fatal(http.ListenAndServe(listen, nil))
 }
 
-func formatter(sessions Sessions) string {
-	regexp.MustCompile("success")
-	var outputString string
-	// sessions_windows_internetexplorer_10 = N
-	browsers := make(map[string]int)
-	var browserMetric string
-	// TODO: Too much complicated
-	for _, v := range sessions.Value {
-		platform := strings.ToLower(v.Capabilities.Platform)
-		browser := strings.Replace(strings.ToLower(v.Capabilities.BrowserName), " ", "", -1)
-		version := v.Capabilities.Version
-		browserMetric = fmt.Sprintf("sessions_%s_%s_%s", platform, browser, version)
-		browsers[browserMetric]++
+func getSessions() map[SessionLabeled]int {
+	seleniumSessions, err := sessionsReader()
+	if err != nil {
+		log.Printf("Problem with Session generate : %v", err)
+		return nil
 	}
 
-	for k, v := range browsers {
-		outputString = outputString + fmt.Sprintf("%s %d\n", k, v)
+	sessionsLabeled := make(map[SessionLabeled]int)
+	for _, v := range seleniumSessions.Value {
+		sessionsLabeled[SessionLabeled{BrowserName: v.Capabilities.BrowserName,
+			Platform: v.Capabilities.Platform,
+			Version:  v.Capabilities.Version}]++
 	}
-
-	// Common metrics
-	// SessionState couldn't be string, only float/int
-
-	sessionsStateSuccess := 0
-	if regexp.MustCompile("success").MatchString(sessions.State) {
-		sessionsStateSuccess = 1
-	}
-
-	outputString = outputString + fmt.Sprintf("sessions_state %d\nsessions_status_success %d\n", sessions.Status, sessionsStateSuccess)
-	return outputString
+	return sessionsLabeled
 }
 
-func sessionsReader() (Sessions, error) {
+func sessionsReader() (SeleniumSessions, error) {
 	resp, err := http.Get(seleniumURL) // TODO: remake errors
 	if err != nil {
 		log.Printf("Problem with HTTP request : %v", err)
-		return sessions, err
+		return seleniumSessions, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("Can't read response from socket: %v", err)
-		return sessions, err
+		return seleniumSessions, err
+
+		// Some comment
 
 	}
-	err = json.Unmarshal(body, &sessions)
+	err = json.Unmarshal(body, &seleniumSessions)
 
 	if err != nil {
 		log.Printf("Can't Unmarshal structure, check URL : %v", err)
-		return sessions, err
+		return seleniumSessions, err
 
 	}
-	return sessions, nil
+	return seleniumSessions, nil
 }
